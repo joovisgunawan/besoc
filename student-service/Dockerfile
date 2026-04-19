@@ -29,7 +29,6 @@ ENV CARGO_HOME=/usr/local/cargo
 FROM lukemathwalker/cargo-chef:latest-rust-1.94-slim-bookworm AS planner
 WORKDIR /app
 
-# Copy full project (important for workspaces & proper caching)
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
@@ -50,7 +49,6 @@ RUN cargo chef cook --release --recipe-path recipe.json
 FROM base AS builder
 WORKDIR /app
 
-# SQLx offline mode
 COPY .sqlx .sqlx
 ENV SQLX_OFFLINE=true
 
@@ -64,31 +62,27 @@ RUN cargo build --release --locked
 
 
 # ============================================
-# STAGE 4: Runtime
+# STAGE 4: Runtime (DISTROLESS)
 # ============================================
-FROM debian:bookworm-slim AS runtime
-
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    libpq5 \
-    libzstd1 \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN useradd -m appuser && mkdir /app && chown appuser:appuser /app
+FROM gcr.io/distroless/cc-debian12 AS runtime
 
 WORKDIR /app
 
+# Copy binary
 COPY --from=builder /app/target/release/student-service /app/student-service
 
-ENV RUST_LOG=info
+# 🔑 Copy required shared libraries (IMPORTANT)
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.3 /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libpq.so.5 /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libzstd.so.1 /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libcurl.so.4 /usr/lib/x86_64-linux-gnu/
 
-USER appuser
+# Certificates (for HTTPS, DB, etc.)
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+
+USER nonroot
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget -qO- http://localhost:8080/health || exit 1
-
-CMD ["./student-service"]
+CMD ["/app/student-service"]
