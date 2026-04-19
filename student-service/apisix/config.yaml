@@ -1,0 +1,65 @@
+apisix:
+  node_listen: 9080
+  enable_ipv6: false
+
+deployment:
+  admin:
+    allow_admin:
+      - 0.0.0.0/0
+    admin_key:
+      - name: "admin"
+        key: edd1c9f034335f136f87ad84b625c8f1
+        role: admin
+
+  etcd:
+    host:
+      - "http://etcd:2379"
+    prefix: "/apisix"
+    timeout: 30
+
+plugins:
+  - cors
+  - ip-restriction
+  - basic-auth
+  - jwt-auth
+  - key-auth
+  - proxy-rewrite
+  - limit-count
+  - limit-req
+  - redirect
+  - response-rewrite
+  - prometheus
+  - http-logger
+  - echo
+  - opentelemetry
+
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: "0.0.0.0"
+      port: 9091
+
+  # opentelemetry:
+  #   # trace_id_source: traceparent
+  #   trace_id_source: x-request-id
+  #   resource:
+  #     service.name: apisix-gateway
+  #   collector:
+  #     address: "http://jaeger:4318"   # 👈 send directly to Jaeger
+  #   batch_span_processor:
+  #     max_queue_size: 2048
+  #     batch_timeout: 5
+  #     max_export_batch_size: 256
+
+  opentelemetry:
+    # trace_id_source: traceparent
+    trace_id_source: x-request-id
+    resource:
+      service.name: apisix-gateway
+    collector:
+      address: "jaeger:4318"
+      request_timeout: 3
+    batch_span_processor:
+      max_queue_size: 2048
+      batch_timeout: 5
+      max_export_batch_size: 256

@@ -1,0 +1,14 @@
+services:
+  student-service:
+    build: .
+    container_name: student-service
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.docker
+    networks:
+      - backend_network
+
+networks:
+  backend_network:
+    external: true

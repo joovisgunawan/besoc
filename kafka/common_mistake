@@ -1,0 +1,9 @@
+KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+Kafka works locally
+but services fromother container can't connect ❌, becasue it only work for lochalhost inside kafka container
+so change it to
+
+KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
+why broker? becasue it's the name of the container, if container name is kafk, change it to kafka
+so we connect to this container service using it's own name, it's like domain name, we dont use ip of this container

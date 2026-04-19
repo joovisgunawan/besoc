@@ -1,0 +1,88 @@
+services:
+  apisix:
+    image: apache/apisix:3.9.0-debian
+    container_name: apisix
+    restart: always
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - apisix_log:/usr/local/apisix/logs
+    ports:
+      - "9080:9080"   # HTTP proxy
+      - "9444:9443"   # HTTPS proxy
+      - "9093:9092"   # TCP proxy (optional)tre
+      - "9180:9180"   # Admin API
+    depends_on:
+      etcd:
+        condition: service_healthy
+    networks:
+      - apisix_net
+      - backend_network
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:9180/apisix/admin/routes", "-H", "X-API-KEY: edd1c9f034335f136f87ad84b625c8f1"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
+    #   start_period: 30s
+
+  apisix-dashboard:
+    image: apache/apisix-dashboard:3.0.1-alpine
+    container_name: apisix-dashboard
+    restart: always
+    volumes:
+      - ./apisix/dashboard-conf.yaml:/usr/local/apisix-dashboard/conf/conf.yaml:ro
+    ports:
+      - "9000:9000"   # Dashboard UI
+    depends_on:
+      - apisix
+      - etcd
+    networks:
+      - apisix_net
+      - backend_network
+
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.11
+    container_name: etcd
+    restart: always
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+      - --initial-cluster-token=etcd-cluster
+      - --initial-cluster-state=new
+      - --enable-v2=true
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd_data:/etcd-data
+    networks:
+      - apisix_net
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Sample upstream backend for testing
+  httpbin:
+    image: kennethreitz/httpbin
+    container_name: httpbin
+    restart: always
+    networks:
+      - apisix_net
+      - backend_network 
+
+volumes:
+  etcd_data:
+  apisix_log:
+
+networks:
+  apisix_net:
+    driver: bridge
+
+  backend_network:
+    external: true

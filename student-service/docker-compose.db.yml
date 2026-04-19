@@ -1,0 +1,61 @@
+services:
+  postgres-primary:
+    image: postgres:16
+    container_name: postgres-primary
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: student_service
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: replicator_password
+    volumes:
+      - postgres_primary_data:/var/lib/postgresql/data
+      - ./postgres/primary/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh
+    networks:
+      - db_network
+      - backend_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-replica:
+    image: postgres:16
+    container_name: postgres-replica
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      PGUSER: replicator
+      PGPASSWORD: replicator_password
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./postgres/replica/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    networks:
+      - db_network
+      - backend_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  db_network:
+    name: db_network
+
+  backend_network:
+    external: true
+
+volumes:
+  postgres_primary_data:
+  postgres_replica_data:

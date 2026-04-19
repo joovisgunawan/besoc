@@ -1,0 +1,33 @@
+conf:
+  listen:
+    host: 0.0.0.0
+    port: 9000
+  allow_list:
+    - 0.0.0.0/0    # Restrict this in production!
+  etcd:
+    endpoints:
+      - etcd:2379
+    mtls:
+      key_file: ""
+      cert_file: ""
+      ca_file: ""
+    prefix: /apisix
+    username: ""
+    password: ""
+  log:
+    error_log:
+      level: warn
+      file_path: logs/error.log
+    access_log:
+      file_path: logs/access.log
+  security:
+    content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
+
+authentication:
+  secret: securedsecretkey          # Change this in production!
+  expire_time: 3600
+  users:
+    - username: admin
+      password: admin               # Change this in production!
+    - username: viewer
+      password: viewer

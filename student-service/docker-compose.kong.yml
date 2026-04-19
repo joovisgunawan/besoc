@@ -1,0 +1,88 @@
+volumes:
+  kong_db_data: {}
+
+networks:
+  kong-net:
+    driver: bridge
+
+  backend_network:
+    external: true
+
+x-kong-config: &kong-env
+  KONG_DATABASE: postgres
+  KONG_PG_DATABASE: kong
+  KONG_PG_HOST: kong-database
+  KONG_PG_USER: kong
+  KONG_PG_PASSWORD: kongpass
+  KONG_PASSWORD: handyshake
+
+services:
+
+  kong-database:
+    image: postgres:13
+    container_name: kong-database
+    environment:
+      POSTGRES_DB: kong
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+    volumes:
+      - kong_db_data:/var/lib/postgresql/data
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  kong-migrations:
+    image: kong/kong-gateway:3.7
+    container_name: kong-migrations
+    command: kong migrations bootstrap
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    environment:
+      <<: *kong-env
+    networks:
+      - kong-net
+    restart: on-failure
+
+  kong-gateway:
+    image: kong/kong-gateway:3.7
+    container_name: kong-gateway
+    user: kong
+
+    networks:
+      - kong-net
+      - backend_network   # 🔥 ADD THIS
+
+    environment:
+      <<: *kong-env
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
+      KONG_PLUGINS: bundled
+
+      # gzip (optional)
+      KONG_NGINX_HTTP_GZIP: "on"
+      KONG_NGINX_HTTP_GZIP_TYPES: "application/json text/plain application/xml text/css application/javascript"
+      KONG_NGINX_HTTP_GZIP_MIN_LENGTH: "128"
+      KONG_NGINX_HTTP_GZIP_COMP_LEVEL: "6"
+
+    depends_on:
+      kong-database:
+        condition: service_healthy
+      kong-migrations:
+        condition: service_completed_successfully
+
+    ports:
+      - "8003:8000"
+      - "8001:8001"
+      - "8002:8002"
+
+    restart: unless-stopped

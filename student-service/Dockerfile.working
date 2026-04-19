@@ -1,0 +1,106 @@
+# ============================================
+# STAGE 1: Planner
+# ============================================
+FROM lukemathwalker/cargo-chef:latest-rust-1.94-slim-bookworm AS planner
+WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+
+RUN cargo chef prepare --recipe-path recipe.json
+
+
+# ============================================
+# STAGE 2: Cacher
+# ============================================
+FROM lukemathwalker/cargo-chef:latest-rust-1.94-slim-bookworm AS cacher
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    libpq-dev \
+    libzstd-dev \
+    libsasl2-dev \
+    librdkafka-dev \
+    libcurl4-openssl-dev \
+    build-essential \
+    cmake \
+    clang \
+    libclang-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+
+# ============================================
+# STAGE 3: Builder
+# ============================================
+FROM rust:1.94-slim-bookworm AS builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    libpq-dev \
+    libzstd-dev \
+    libsasl2-dev \
+    librdkafka-dev \
+    libcurl4-openssl-dev \
+    build-essential \
+    cmake \
+    clang \
+    libclang-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+# SQLx offline mode (IMPORTANT)
+COPY .sqlx .sqlx
+ENV SQLX_OFFLINE=true
+
+# reuse cache
+COPY --from=cacher /usr/local/cargo /usr/local/cargo
+COPY --from=cacher /app/target /app/target
+
+ENV RUSTFLAGS="-C link-arg=-lzstd"
+ENV PKG_CONFIG_ALLOW_CROSS=1
+
+RUN cargo build --release --locked
+
+
+# ============================================
+# STAGE 4: Runtime (Debian)
+# ============================================
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libpq5 \
+    libcurl4 \
+    libsasl2-2 \
+    libzstd1 \
+    librdkafka1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m appuser
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/student-service /app/app
+
+USER appuser
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["./app"]

@@ -1,0 +1,6 @@
+docker compose up -d
+#open kibana
+http://localhost:5601
+
+#By default logs go to stdout. so change to docker, and Docker will capture logs → you can forward them.
+# and better if use kafka, so no blocking requests, and async logging

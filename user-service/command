@@ -1,0 +1,16 @@
+mkdir -p src/{config,domain,repository,usecase,handler,dto,infrastructure,routes,middleware,errors}
+touch src/config/config.rs
+touch src/domain/user.rs
+touch src/repository/user_repository.rs
+touch src/usecase/user_usecase.rs
+touch src/handler/user_handler.rs
+touch src/dto/user_dto.rs
+touch src/infrastructure/database.rs
+touch src/infrastructure/redis.rs
+touch src/infrastructure/kafka.rs
+touch src/routes/routes.rs
+touch src/middleware/auth_middleware.rs
+touch src/errors/app_error.rs
+touch .env
+touch Dockerfile
+touch docker-compose.yml

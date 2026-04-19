@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: glitchtip
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - glitchtip_net
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - glitchtip_net
+
+  glitchtip:
+    image: glitchtip/glitchtip
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgres://glitchtip:glitchtip@postgres:5432/glitchtip
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: supersecretkey
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - glitchtip_net
+
+volumes:
+  pgdata:
+
+networks:
+  glitchtip_net:

@@ -1,0 +1,56 @@
+# ============================================
+# STAGE 1: Planner
+# ============================================
+FROM lukemathwalker/cargo-chef:latest-rust-1.94-slim-bookworm AS planner
+WORKDIR /app
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ============================================
+# STAGE 2: Builder & Cacher
+# ============================================
+FROM rust:1.94-slim-bookworm AS builder
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config libssl-dev libpq-dev libzstd-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cargo-chef
+RUN cargo install cargo-chef
+
+# Build dependencies (Caching)
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Build Application
+COPY . .
+ENV SQLX_OFFLINE=true
+# Strip symbols and optimize for size via RUSTFLAGS
+RUN cargo build --release --locked
+
+# OPTIONAL: Binary Compression (Reduces size by ~50-70%)
+RUN apt-get update && apt-get install -y upx-ucl
+RUN upx --best --lzma target/release/student-service
+
+# ============================================
+# STAGE 3: Runtime
+# ============================================
+# Using "static" distroless if you manage to link statically, 
+# otherwise "cc" is fine.
+FROM gcr.io/distroless/cc-debian12 AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/student-service /app/student-service
+
+# Use ldd to check dependencies if it fails, but distroless/cc 
+# already includes glibc, libgcc, and libstdc++.
+# Only copy libraries NOT provided by the 'cc' variant.
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libpq.so.5 /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libzstd.so.1 /usr/lib/x86_64-linux-gnu/
+
+USER nonroot
+EXPOSE 8080
+CMD ["./student-service"]

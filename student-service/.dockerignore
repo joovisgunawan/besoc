@@ -1,0 +1,49 @@
+# Rust build artifacts
+target/
+**/target/
+
+# Cargo registry and git checkouts (if present locally)
+~/.cargo/
+~/.rustup/
+
+# Lock file backups / temp files
+*.log
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker files (optional, depends on workflow)
+Dockerfile
+Dockerfile.*
+
+docker-compose.yml
+# Docker Compose files (all variants)
+docker-compose*.yml
+docker-compose*.yaml
+
+# Any custom compose naming patterns
+*compose*.yml
+*compose*.yaml
+
+# Environment files (optional but common)
+.env
+.env.*
+
+Makefile
+/postgres
+/apisix
+filebat.yaml
+/logstash
+student-service.tar
+

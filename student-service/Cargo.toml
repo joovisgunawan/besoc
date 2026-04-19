@@ -1,0 +1,42 @@
+[package]
+name = "student-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"] }
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+
+# request id
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-br", "compression-gzip", "request-id", "util"] }
+uuid = { version = "1", features = ["serde", "v4", "fast-rng"] }
+
+rdkafka = { version = "0.36", features = ["cmake-build"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+sentry = { version = "0.34", features = ["tracing"] }
+sentry-tracing = "0.34"
+
+opentelemetry = { version = "0.22", features = ["trace"] }
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio", "trace"] }
+opentelemetry-otlp = { version = "0.15", features = ["tonic", "trace"] }
+opentelemetry-semantic-conventions = "0.14"
+tracing-opentelemetry = "0.23"
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
+validator = { version = "0.20.0", features = ["derive"] }
+
+# rate limiting
+tower_governor = "0.4"
+governor = "0.6"
+
+# metrics
+axum-prometheus = "0.7"
+
+# jwt
+jsonwebtoken = "9"

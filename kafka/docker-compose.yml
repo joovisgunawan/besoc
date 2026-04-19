@@ -1,0 +1,46 @@
+services:
+  broker:
+    image: apache/kafka:latest
+    container_name: broker
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+
+  kafka-init:
+    image: apache/kafka:latest
+    depends_on:
+      - broker
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      echo "Waiting for Kafka to be ready..."
+
+      until /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server broker:29092; do
+        echo "Kafka not ready yet..."
+        sleep 2
+      done
+
+      echo "Kafka is ready. Creating topics..."
+
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists \
+        --topic user-events \
+        --bootstrap-server broker:9092 \
+        --replication-factor 1 \
+        --partitions 3
+
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists \
+        --topic logs \
+        --bootstrap-server broker:9092 \
+        --replication-factor 1 \
+        --partitions 1
+
+      echo "Topics created!"
